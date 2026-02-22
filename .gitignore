@@ -144,6 +144,7 @@ ENV/
 env.bak/
 venv.bak/
 .fraud_detect_venv
+fraud_detect_venv.bak/
 
 
 # Spyder project settings
