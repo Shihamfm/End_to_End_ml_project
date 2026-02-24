@@ -135,6 +135,8 @@ celerybeat.pid
 *.sage.py
 
 # Environments
+.artifacts
+artifacts/
 .env
 .envrc
 .venv
@@ -146,6 +148,9 @@ venv.bak/
 .fraud_detect_venv
 fraud_detect_venv/
 fraud_detect_venv.bak/
+.fraud_venv
+fraud_venv/
+fraud_venv.bak/
 
 
 # Spyder project settings
@@ -209,3 +214,7 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+
+#raw_data
+notebook/data/

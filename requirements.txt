@@ -1,4 +1,9 @@
-pandas
-numpy
-seaborn
+pandas==2.3.3
+numpy==2.3.5
+seaborn==0.13.2
+matplotlib==3.10.6
+scikit-learn==1.7.2
+xgboost==3.2.0
+lightgbm==4.6.0
+ipykernel
 -e .
