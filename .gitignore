@@ -218,3 +218,6 @@ __marimo__/
 
 #raw_data
 notebook/data/
+
+#mlflow
+mlruns/

@@ -11,10 +11,11 @@ import pandas as pd
 
 from src.logger import logging
 from src.exception import CustomException
-from src.utils import save_object
+from src.utils import save_artifact
 from src.components.data_ingestion import DataIngestion
+from src.components.model_trainer import ModelTrainer
 
-
+@dataclass
 class DataTrasnformationConfig:
     preprocessor_obj_file_path_log = os.path.join('artifacts', "preprcessor_log.pkl")
     preprocessor_obj_file_path_tree = os.path.join('artifacts', "preprcessor_tree.pkl")
@@ -100,14 +101,14 @@ class DataTransformation:
             val_tree_arr = np.c_[X_val_tree_arr, np.array(val_df[target_column])]
             test_tree_arr = np.c_[X_test_tree_arr, np.array(test_df[target_column])]
 
-            save_object(
-                file_path = self.data_transformation_config.preprocessor_obj_file_path_log,
-                obj = preprcessing_obj_log
+            save_artifact(
+                obj = preprcessing_obj_log,
+                path = self.data_transformation_config.preprocessor_obj_file_path_log
             )
 
-            save_object(
-                file_path = self.data_transformation_config.preprocessor_obj_file_path_tree,
-                obj = preprcessing_obj_tree
+            save_artifact(
+                obj = preprcessing_obj_tree,
+                path = self.data_transformation_config.preprocessor_obj_file_path_tree
             )
 
             return train_log_arr, val_log_arr, test_log_arr, train_tree_arr, val_tree_arr, test_tree_arr, self.data_transformation_config.preprocessor_obj_file_path_log, self.data_transformation_config.preprocessor_obj_file_path_tree
@@ -121,7 +122,7 @@ if __name__ == "__main__":
     train_data_path, val_data_path, test_data_path = obj_data_ingestion.initiate_train_val_test_data_ingestion()
 
     obj_data_transformation = DataTransformation()
-    data_transformation = obj_data_transformation.initiate_data_transformation(train_data_path, val_data_path, test_data_path)
+    train_log_arr, val_log_arr, test_log_arr, train_tree_arr, val_tree_arr, test_tree_arr, _, _ = obj_data_transformation.initiate_data_transformation(train_data_path, val_data_path, test_data_path)
 
-
-            
+    obj_model_trainer = ModelTrainer()
+    obj_model_trainer.initiate_model_trainer(train_log_arr, val_log_arr, test_log_arr, train_tree_arr, val_tree_arr, test_tree_arr)
