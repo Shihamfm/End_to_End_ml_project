@@ -80,7 +80,12 @@ def load_artifact(path: str) -> Any:
     """
     if not os.path.exists(path):
         raise FileNotFoundError(f"No artifact found at {path}")
-    return sio.load(path, trusted=True)
+    
+    # 1. Identify the types used in the saved file
+    untrusted_types = sio.get_untrusted_types(file=path)
+    
+    # 2. Pass those types to the 'trusted' argument to allow loading
+    return sio.load(path, trusted=untrusted_types)
     
 
 def build_param_grids(config: dict, y_train: np.ndarray) -> Dict[str, Dict]:
