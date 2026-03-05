@@ -8,4 +8,6 @@ lightgbm==4.6.0
 mlflow==3.10.0
 skops==0.13.0
 ipykernel==7.2.0
+fastapi==0.133.1
+python-multipart==0.0.22
 -e .
