@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FraudShield — Transaction Analysis</title>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&family=Barlow+Condensed:wght@700;900&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+
+    :root {
+      --bg:       #050a0e;
+      --surface:  #0b1520;
+      --border:   #0f2a3f;
+      --accent:   #00d4ff;
+      --accent2:  #ff3c5f;
+      --text:     #c8dde8;
+      --muted:    #4a6a80;
+      --green:    #00ff88;
+      --mono:     'Share Tech Mono', monospace;
+      --sans:     'Barlow', sans-serif;
+      --display:  'Barlow Condensed', sans-serif;
+    }
+
+    html, body { min-height:100%; background:var(--bg); color:var(--text); font-family:var(--sans); overflow-x:hidden; }
+
+    body::before {
+      content:''; position:fixed; inset:0;
+      background-image:
+        linear-gradient(rgba(0,212,255,.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,255,.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      animation: gridScroll 24s linear infinite;
+      pointer-events:none; z-index:0;
+    }
+    @keyframes gridScroll { 0%{background-position:0 0;} 100%{background-position:48px 48px;} }
+
+    .wrapper { position:relative; z-index:1; }
+
+    /* ── header ── */
+    header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:1.2rem 3rem;
+      border-bottom:1px solid var(--border);
+      background:rgba(5,10,14,.9);
+      backdrop-filter:blur(10px);
+      position:sticky; top:0; z-index:100;
+    }
+    .logo { font-family:var(--display); font-size:1.5rem; font-weight:900; letter-spacing:.08em; color:#fff; text-transform:uppercase; text-decoration:none; }
+    .logo span { color:var(--accent); }
+    .nav-links { display:flex; gap:1.5rem; align-items:center; }
+    .nav-link { font-family:var(--mono); font-size:.72rem; color:var(--muted); text-decoration:none; letter-spacing:.1em; transition:color .2s; }
+    .nav-link:hover { color:var(--accent); }
+    .nav-link.active { color:var(--accent); }
+
+    /* ── page layout ── */
+    .page {
+      max-width:1200px;
+      margin:0 auto;
+      padding:3rem 3rem 5rem;
+      display:grid;
+      grid-template-columns:1fr 360px;
+      gap:2.5rem;
+      align-items:start;
+    }
+
+    /* ── section heading ── */
+    .section-label {
+      font-family:var(--mono);
+      font-size:.68rem;
+      letter-spacing:.2em;
+      color:var(--accent);
+      text-transform:uppercase;
+      margin-bottom:.8rem;
+    }
+    .section-title {
+      font-family:var(--display);
+      font-size:2rem;
+      font-weight:900;
+      text-transform:uppercase;
+      color:#fff;
+      margin-bottom:.5rem;
+    }
+    .section-sub {
+      font-size:.88rem;
+      color:var(--muted);
+      margin-bottom:2rem;
+      line-height:1.6;
+    }
+
+    /* ── form card ── */
+    .form-card {
+      background:rgba(11,21,32,.85);
+      border:1px solid var(--border);
+      border-radius:4px;
+      padding:2rem 2.2rem;
+      animation:fadeUp .5s ease both;
+    }
+    @keyframes fadeUp { from{opacity:0;transform:translateY(20px);} to{opacity:1;transform:none;} }
+
+    /* ── progress bar ── */
+    .progress-bar {
+      display:flex;
+      gap:.3rem;
+      margin-bottom:2rem;
+      align-items:center;
+    }
+    .prog-step {
+      height:3px;
+      flex:1;
+      background:var(--border);
+      border-radius:99px;
+      transition:background .3s;
+    }
+    .prog-step.active { background:var(--accent); box-shadow:0 0 8px rgba(0,212,255,.5); }
+    .prog-label {
+      font-family:var(--mono);
+      font-size:.62rem;
+      color:var(--muted);
+      letter-spacing:.1em;
+      margin-bottom:.5rem;
+    }
+
+    /* ── tab system ── */
+    .tab-nav {
+      display:flex;
+      gap:0;
+      margin-bottom:1.8rem;
+      border:1px solid var(--border);
+      border-radius:3px;
+      overflow:hidden;
+    }
+    .tab-btn {
+      flex:1;
+      padding:.55rem .5rem;
+      font-family:var(--mono);
+      font-size:.65rem;
+      letter-spacing:.08em;
+      background:transparent;
+      color:var(--muted);
+      border:none;
+      cursor:pointer;
+      transition:all .2s;
+      border-right:1px solid var(--border);
+    }
+    .tab-btn:last-child { border-right:none; }
+    .tab-btn.active { background:var(--accent); color:var(--bg); font-weight:700; }
+    .tab-btn:not(.active):hover { background:rgba(0,212,255,.06); color:var(--text); }
+
+    .tab-pane { display:none; }
+    .tab-pane.active { display:block; }
+
+    /* ── feature grid ── */
+    .feat-grid {
+      display:grid;
+      grid-template-columns:repeat(4, 1fr);
+      gap:.7rem;
+      margin-bottom:1rem;
+    }
+    .feat-group {
+      display:flex;
+      flex-direction:column;
+      gap:.25rem;
+    }
+    .feat-group label {
+      font-family:var(--mono);
+      font-size:.62rem;
+      color:var(--muted);
+      letter-spacing:.1em;
+    }
+    .feat-group input {
+      background:rgba(0,212,255,.04);
+      border:1px solid var(--border);
+      border-radius:2px;
+      color:var(--text);
+      font-family:var(--mono);
+      font-size:.78rem;
+      padding:.45rem .6rem;
+      width:100%;
+      transition:border-color .2s, box-shadow .2s;
+      outline:none;
+    }
+    .feat-group input:focus {
+      border-color:var(--accent);
+      box-shadow:0 0 0 2px rgba(0,212,255,.12);
+    }
+    .feat-group input::placeholder { color:var(--muted); opacity:.5; }
+
+    /* amount field – full width */
+    .amount-row {
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:.7rem;
+      margin-top:.7rem;
+      margin-bottom:1.8rem;
+    }
+    .amount-row .feat-group { grid-column: 1/-1; }
+
+    /* ── submit ── */
+    .submit-row {
+      display:flex;
+      gap:1rem;
+      align-items:center;
+      margin-top:1.5rem;
+    }
+    .btn-submit {
+      flex:1;
+      padding:.9rem;
+      font-family:var(--mono);
+      font-size:.82rem;
+      letter-spacing:.12em;
+      text-transform:uppercase;
+      background:var(--accent);
+      color:var(--bg);
+      border:none;
+      border-radius:2px;
+      cursor:pointer;
+      font-weight:700;
+      box-shadow:0 0 24px rgba(0,212,255,.3);
+      transition:all .25s;
+    }
+    .btn-submit:hover {
+      background:#fff;
+      box-shadow:0 0 40px rgba(0,212,255,.6);
+      transform:translateY(-1px);
+    }
+    .btn-reset {
+      padding:.9rem 1.4rem;
+      font-family:var(--mono);
+      font-size:.82rem;
+      background:transparent;
+      color:var(--muted);
+      border:1px solid var(--border);
+      border-radius:2px;
+      cursor:pointer;
+      transition:all .2s;
+    }
+    .btn-reset:hover { border-color:var(--accent2); color:var(--accent2); }
+
+    /* ── right panel ── */
+    .right-col { display:flex; flex-direction:column; gap:1.5rem; }
+
+    /* ── result card ── */
+    .result-card {
+      background:rgba(11,21,32,.9);
+      border:1px solid var(--border);
+      border-radius:4px;
+      overflow:hidden;
+      animation:fadeUp .5s .15s ease both;
+    }
+    .result-header {
+      padding:1rem 1.4rem;
+      border-bottom:1px solid var(--border);
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .result-title {
+      font-family:var(--mono);
+      font-size:.7rem;
+      letter-spacing:.12em;
+      color:var(--muted);
+      text-transform:uppercase;
+    }
+    .result-body { padding:1.6rem 1.4rem; }
+
+    /* no result yet */
+    .no-result {
+      text-align:center;
+      padding:2rem 0;
+    }
+    .no-result-icon { font-size:2.5rem; margin-bottom:.8rem; opacity:.4; }
+    .no-result p { font-family:var(--mono); font-size:.72rem; color:var(--muted); line-height:1.7; }
+
+    /* with result */
+    .verdict {
+      text-align:center;
+    }
+    .verdict-badge {
+      display:inline-flex;
+      align-items:center;
+      gap:.6rem;
+      padding:.7rem 1.6rem;
+      border-radius:2px;
+      font-family:var(--display);
+      font-size:1.5rem;
+      font-weight:900;
+      text-transform:uppercase;
+      letter-spacing:.1em;
+      margin-bottom:1rem;
+    }
+    .verdict-badge.fraud {
+      background:rgba(255,60,95,.12);
+      border:1px solid rgba(255,60,95,.4);
+      color:var(--accent2);
+      box-shadow:0 0 24px rgba(255,60,95,.15);
+    }
+    .verdict-badge.legit {
+      background:rgba(0,255,136,.1);
+      border:1px solid rgba(0,255,136,.35);
+      color:var(--green);
+      box-shadow:0 0 24px rgba(0,255,136,.12);
+    }
+    .verdict-class {
+      font-family:var(--mono);
+      font-size:.72rem;
+      color:var(--muted);
+      margin-top:.4rem;
+    }
+    .verdict-class span { color:var(--text); }
+
+    /* ── info panel ── */
+    .info-card {
+      background:rgba(11,21,32,.9);
+      border:1px solid var(--border);
+      border-radius:4px;
+      padding:1.4rem;
+      animation:fadeUp .5s .25s ease both;
+    }
+    .info-title {
+      font-family:var(--mono);
+      font-size:.65rem;
+      letter-spacing:.15em;
+      color:var(--accent);
+      text-transform:uppercase;
+      margin-bottom:1rem;
+    }
+    .info-row {
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:.5rem 0;
+      border-bottom:1px solid rgba(15,42,63,.8);
+      font-family:var(--mono);
+      font-size:.7rem;
+    }
+    .info-row:last-child { border-bottom:none; }
+    .info-key { color:var(--muted); }
+    .info-val { color:var(--text); }
+    .info-val.ok { color:var(--green); }
+
+    /* ── loading state ── */
+    .loading-overlay {
+      display:none;
+      position:fixed; inset:0;
+      background:rgba(5,10,14,.85);
+      backdrop-filter:blur(4px);
+      z-index:999;
+      align-items:center;
+      justify-content:center;
+      flex-direction:column;
+      gap:1.5rem;
+    }
+    .loading-overlay.active { display:flex; }
+    .spinner {
+      width:56px; height:56px;
+      border:2px solid var(--border);
+      border-top-color:var(--accent);
+      border-radius:50%;
+      animation:spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .loading-text {
+      font-family:var(--mono);
+      font-size:.8rem;
+      color:var(--accent);
+      letter-spacing:.2em;
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:.4;} }
+
+    @media (max-width:900px) {
+      .page { grid-template-columns:1fr; padding:2rem 1.5rem 4rem; }
+      .feat-grid { grid-template-columns:repeat(3,1fr); }
+      header { padding:1rem 1.5rem; }
+    }
+    @media (max-width:560px) {
+      .feat-grid { grid-template-columns:repeat(2,1fr); }
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- LOADING -->
+  <div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+    <div class="loading-text">ANALYZING TRANSACTION...</div>
+  </div>
+
+  <!-- HEADER -->
+  <header>
+    <a href="/" class="logo">Fraud<span>Shield</span></a>
+    <nav class="nav-links">
+      <a href="/" class="nav-link">Home</a>
+      <a href="/predictdata" class="nav-link active">Predict</a>
+      <a href="http://127.0.0.1:8000/docs" class="nav-link" target="_blank">API Docs</a>
+    </nav>
+  </header>
+
+  <!-- MAIN -->
+  <div class="page">
+
+    <!-- LEFT: FORM -->
+    <div>
+      <p class="section-label">// transaction analysis</p>
+      <h2 class="section-title">Feature Input</h2>
+      <p class="section-sub">
+        Enter the PCA-transformed transaction features (V1–V28) and the transaction amount. 
+        All V-features are anonymized principal components from the original dataset.
+      </p>
+
+      <div class="form-card">
+        <!-- tab nav -->
+        <div class="tab-nav">
+          <button class="tab-btn active" onclick="switchTab('t0',this)">Time</button>
+          <button class="tab-btn" onclick="switchTab('t1',this)">V1 – V7</button>
+          <button class="tab-btn" onclick="switchTab('t2',this)">V8 – V14</button>
+          <button class="tab-btn" onclick="switchTab('t3',this)">V15 – V21</button>
+          <button class="tab-btn" onclick="switchTab('t4',this)">V22 – V28</button>
+          <button class="tab-btn" onclick="switchTab('t5',this)">Amount</button>
+        </div>
+
+        <form action="/predictdata" method="post" id="mainForm" onsubmit="showLoading()">
+
+          <!-- Tab 0: Time -->
+          <div class="tab-pane active" id="t0">
+            <p class="prog-label">Step 1 of 6 — Transaction Time</p>
+            <div class="progress-bar">
+              <div class="prog-step active"></div><div class="prog-step"></div>
+              <div class="prog-step"></div><div class="prog-step"></div>
+              <div class="prog-step"></div><div class="prog-step"></div>
+            </div>
+            <div style="max-width:320px; margin-bottom:1.8rem;">
+              <div class="feat-group">
+                <label>TIME (seconds)</label>
+                <input type="number" name="Time" step="any" min="0" placeholder="e.g. 406.0" required
+                  style="font-size:1.1rem; padding:.75rem .9rem;" />
+              </div>
+            </div>
+            <div style="background:rgba(0,212,255,.04); border:1px solid var(--border); border-radius:3px; padding:1rem; max-width:420px;">
+              <p style="font-family:var(--mono); font-size:.62rem; color:var(--accent); letter-spacing:.1em; margin-bottom:.5rem;">⏱ ABOUT THIS FIELD</p>
+              <p style="font-family:var(--mono); font-size:.68rem; color:var(--muted); line-height:1.8;">
+                Seconds elapsed since the first transaction in the dataset.<br/>
+                Typical range: <strong style="color:var(--text)">0 – 172,800</strong> (covers 48 hours).<br/>
+                This is a raw, non-PCA feature used directly by the model.
+              </p>
+            </div>
+          </div>
+
+          <!-- Tab 1: V1-V7 -->
+          <div class="tab-pane" id="t1">
+            <p class="prog-label">Step 2 of 6 — PCA Features 1–7</p>
+            <div class="progress-bar">
+              <div class="prog-step active"></div><div class="prog-step active"></div>
+              <div class="prog-step"></div><div class="prog-step"></div>
+              <div class="prog-step"></div><div class="prog-step"></div>
+            </div>
+            <div class="feat-grid">
+              <div class="feat-group"><label>V1</label><input type="number" name="V1" step="any" placeholder="e.g. -1.359" required /></div>
+              <div class="feat-group"><label>V2</label><input type="number" name="V2" step="any" placeholder="e.g. -0.072" required /></div>
+              <div class="feat-group"><label>V3</label><input type="number" name="V3" step="any" placeholder="e.g. 2.536" required /></div>
+              <div class="feat-group"><label>V4</label><input type="number" name="V4" step="any" placeholder="e.g. 1.378" required /></div>
+              <div class="feat-group"><label>V5</label><input type="number" name="V5" step="any" placeholder="e.g. -0.338" required /></div>
+              <div class="feat-group"><label>V6</label><input type="number" name="V6" step="any" placeholder="e.g. 0.462" required /></div>
+              <div class="feat-group"><label>V7</label><input type="number" name="V7" step="any" placeholder="e.g. 0.239" required /></div>
+            </div>
+          </div>
+
+          <!-- Tab 2: V8-V14 -->
+          <div class="tab-pane" id="t2">
+            <p class="prog-label">Step 3 of 6 — PCA Features 8–14</p>
+            <div class="progress-bar">
+              <div class="prog-step active"></div><div class="prog-step active"></div>
+              <div class="prog-step active"></div><div class="prog-step"></div>
+              <div class="prog-step"></div><div class="prog-step"></div>
+            </div>
+            <div class="feat-grid">
+              <div class="feat-group"><label>V8</label><input type="number" name="V8" step="any" placeholder="e.g. 0.098" required /></div>
+              <div class="feat-group"><label>V9</label><input type="number" name="V9" step="any" placeholder="e.g. 0.363" required /></div>
+              <div class="feat-group"><label>V10</label><input type="number" name="V10" step="any" placeholder="e.g. 0.090" required /></div>
+              <div class="feat-group"><label>V11</label><input type="number" name="V11" step="any" placeholder="e.g. -0.551" required /></div>
+              <div class="feat-group"><label>V12</label><input type="number" name="V12" step="any" placeholder="e.g. -0.617" required /></div>
+              <div class="feat-group"><label>V13</label><input type="number" name="V13" step="any" placeholder="e.g. -0.991" required /></div>
+              <div class="feat-group"><label>V14</label><input type="number" name="V14" step="any" placeholder="e.g. -0.311" required /></div>
+            </div>
+          </div>
+
+          <!-- Tab 3: V15-V21 -->
+          <div class="tab-pane" id="t3">
+            <p class="prog-label">Step 4 of 6 — PCA Features 15–21</p>
+            <div class="progress-bar">
+              <div class="prog-step active"></div><div class="prog-step active"></div>
+              <div class="prog-step active"></div><div class="prog-step active"></div>
+              <div class="prog-step"></div><div class="prog-step"></div>
+            </div>
+            <div class="feat-grid">
+              <div class="feat-group"><label>V15</label><input type="number" name="V15" step="any" placeholder="e.g. 1.468" required /></div>
+              <div class="feat-group"><label>V16</label><input type="number" name="V16" step="any" placeholder="e.g. -0.470" required /></div>
+              <div class="feat-group"><label>V17</label><input type="number" name="V17" step="any" placeholder="e.g. 0.207" required /></div>
+              <div class="feat-group"><label>V18</label><input type="number" name="V18" step="any" placeholder="e.g. 0.025" required /></div>
+              <div class="feat-group"><label>V19</label><input type="number" name="V19" step="any" placeholder="e.g. 0.403" required /></div>
+              <div class="feat-group"><label>V20</label><input type="number" name="V20" step="any" placeholder="e.g. 0.251" required /></div>
+              <div class="feat-group"><label>V21</label><input type="number" name="V21" step="any" placeholder="e.g. -0.018" required /></div>
+            </div>
+          </div>
+
+          <!-- Tab 4: V22-V28 -->
+          <div class="tab-pane" id="t4">
+            <p class="prog-label">Step 5 of 6 — PCA Features 22–28</p>
+            <div class="progress-bar">
+              <div class="prog-step active"></div><div class="prog-step active"></div>
+              <div class="prog-step active"></div><div class="prog-step active"></div>
+              <div class="prog-step active"></div><div class="prog-step"></div>
+            </div>
+            <div class="feat-grid">
+              <div class="feat-group"><label>V22</label><input type="number" name="V22" step="any" placeholder="e.g. 0.277" required /></div>
+              <div class="feat-group"><label>V23</label><input type="number" name="V23" step="any" placeholder="e.g. -0.110" required /></div>
+              <div class="feat-group"><label>V24</label><input type="number" name="V24" step="any" placeholder="e.g. 0.066" required /></div>
+              <div class="feat-group"><label>V25</label><input type="number" name="V25" step="any" placeholder="e.g. 0.128" required /></div>
+              <div class="feat-group"><label>V26</label><input type="number" name="V26" step="any" placeholder="e.g. -0.189" required /></div>
+              <div class="feat-group"><label>V27</label><input type="number" name="V27" step="any" placeholder="e.g. 0.133" required /></div>
+              <div class="feat-group"><label>V28</label><input type="number" name="V28" step="any" placeholder="e.g. -0.021" required /></div>
+            </div>
+          </div>
+
+          <!-- Tab 5: Amount -->
+          <div class="tab-pane" id="t5">
+            <p class="prog-label">Step 6 of 6 — Transaction Amount</p>
+            <div class="progress-bar">
+              <div class="prog-step active"></div><div class="prog-step active"></div>
+              <div class="prog-step active"></div><div class="prog-step active"></div>
+              <div class="prog-step active"></div><div class="prog-step active"></div>
+            </div>
+            <div style="max-width:320px; margin-bottom:1.8rem;">
+              <div class="feat-group">
+                <label>AMOUNT (USD)</label>
+                <input type="number" name="Amount" step="any" min="0" placeholder="e.g. 149.62" required
+                  style="font-size:1.1rem; padding:.75rem .9rem;" />
+              </div>
+            </div>
+            <div style="background:rgba(0,212,255,.04); border:1px solid var(--border); border-radius:3px; padding:1rem; max-width:420px;">
+              <p style="font-family:var(--mono); font-size:.62rem; color:var(--accent); letter-spacing:.1em; margin-bottom:.5rem;">💳 ABOUT THIS FIELD</p>
+              <p style="font-family:var(--mono); font-size:.68rem; color:var(--muted); line-height:1.8;">
+                The raw transaction value in USD.<br/>
+                Must be <strong style="color:var(--text)">≥ 0</strong>. Accepts decimal values.<br/>
+                This is a raw, non-PCA feature used directly by the model.
+              </p>
+            </div>
+          </div>
+
+          <!-- SUBMIT -->
+          <div class="submit-row">
+            <button type="submit" class="btn-submit">⟶ &nbsp;Analyze Transaction</button>
+            <button type="reset" class="btn-reset" onclick="resetAll()">↺</button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+
+    <!-- RIGHT: RESULT + INFO -->
+    <div class="right-col">
+
+      <!-- RESULT -->
+      <div class="result-card">
+        <div class="result-header">
+          <span class="result-title">// Detection Result</span>
+          {% if results is not none and results != '' %}
+          <span style="font-family:var(--mono); font-size:.62rem; color:var(--green);">● COMPLETE</span>
+          {% else %}
+          <span style="font-family:var(--mono); font-size:.62rem; color:var(--muted);">○ AWAITING INPUT</span>
+          {% endif %}
+        </div>
+        <div class="result-body">
+
+          {% if results is not none and results != '' %}
+            {% if results == 1 or results == '1' %}
+            <!-- FRAUD -->
+            <div class="verdict">
+              <div class="verdict-badge fraud">⚠ FRAUD</div>
+              <p class="verdict-class">Prediction class: <span>1 — Fraudulent</span></p>
+              <p style="font-family:var(--mono); font-size:.7rem; color:var(--muted); margin-top:1rem; line-height:1.7;">
+                This transaction has been flagged as <strong style="color:var(--accent2)">potentially fraudulent</strong>. 
+                Immediate review is recommended.
+              </p>
+            </div>
+            {% else %}
+            <!-- LEGIT -->
+            <div class="verdict">
+              <div class="verdict-badge legit">✓ LEGIT</div>
+              <p class="verdict-class">Prediction class: <span>0 — Legitimate</span></p>
+              <p style="font-family:var(--mono); font-size:.7rem; color:var(--muted); margin-top:1rem; line-height:1.7;">
+                This transaction appears <strong style="color:var(--green)">legitimate</strong>. 
+                No fraudulent patterns detected.
+              </p>
+            </div>
+            {% endif %}
+          {% else %}
+          <div class="no-result">
+            <div class="no-result-icon">◎</div>
+            <p>No prediction yet.<br/>Fill in the feature values<br/>and submit to analyze.</p>
+          </div>
+          {% endif %}
+
+        </div>
+      </div>
+
+      <!-- INFO PANEL -->
+      <div class="info-card">
+        <div class="info-title">// System Info</div>
+        <div class="info-row"><span class="info-key">Framework</span><span class="info-val ok">FastAPI</span></div>
+        <div class="info-row"><span class="info-key">Model</span><span class="info-val">ML Pipeline</span></div>
+        <div class="info-row"><span class="info-key">Features</span><span class="info-val">Time, V1–V28, Amount</span></div>
+        <div class="info-row"><span class="info-key">Classes</span><span class="info-val">0 = Legit · 1 = Fraud</span></div>
+        <div class="info-row"><span class="info-key">Endpoint</span><span class="info-val">POST /predictdata</span></div>
+        <div class="info-row"><span class="info-key">Status</span><span class="info-val ok">● Online</span></div>
+      </div>
+
+      <!-- HINT CARD -->
+      <div class="info-card" style="border-color:rgba(0,212,255,.15); background:rgba(0,212,255,.03);">
+        <div class="info-title" style="color:var(--muted);">// Quick Tip</div>
+        <p style="font-family:var(--mono); font-size:.68rem; color:var(--muted); line-height:1.8;">
+          Start with <strong style="color:var(--text)">Time</strong>, fill V1–V28 across 4 tabs, finish with <strong style="color:var(--text)">Amount</strong>.<br/><br/>
+          V1–V28 are PCA components — accept negative or positive floats.<br/>
+          Time: seconds (0–172,800) · Amount: USD ≥ 0.
+        </p>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+  function switchTab(id, btn) {
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  function showLoading() {
+    // Validate all required inputs first
+    const inputs = document.querySelectorAll('#mainForm input[required]');
+    let valid = true;
+    inputs.forEach(inp => { if(!inp.value) valid = false; });
+    if(valid) {
+      document.getElementById('loadingOverlay').classList.add('active');
+    }
+  }
+
+  function resetAll() {
+    document.getElementById('mainForm').reset();
+    switchTab('t0', document.querySelector('.tab-btn'));
+  }
+
+  // Auto-scroll to result on page load if result exists
+  window.addEventListener('load', () => {
+    const badge = document.querySelector('.verdict-badge');
+    if(badge) {
+      badge.closest('.result-card').scrollIntoView({ behavior:'smooth', block:'center' });
+      // animate badge
+      badge.style.animation = 'none';
+      badge.style.transform = 'scale(0.8)';
+      badge.style.opacity = '0';
+      setTimeout(() => {
+        badge.style.transition = 'all .4s cubic-bezier(.34,1.56,.64,1)';
+        badge.style.transform = 'scale(1)';
+        badge.style.opacity = '1';
+      }, 100);
+    }
+  });
+
+  // Keyboard shortcut: Enter navigates tabs
+  document.addEventListener('keydown', e => {
+    if(e.key === 'Tab' && e.shiftKey) return;
+  });
+</script>
+</body>
+</html>
